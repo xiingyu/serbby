@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<robot name="serbby">
+
+    <!-- base links -->
+    <link name="base_link">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/bottom.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="base_left_side">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/left_side.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="base_right_side">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/right_side.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="base_front_side">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/front_side.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <link name="base_back_side">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/back_side.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+    <!-- base links -->
+    <!-- base -->
+    <joint name="base_link_to_base_left_side" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="base_left_side" />
+    </joint>
+
+    <joint name="base_link_to_base_right_side" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="base_right_side" />
+    </joint>
+
+    <joint name="base_link_to_base_front_side" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="base_front_side" />
+    </joint>
+
+    <joint name="base_link_to_base_back_side" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="base_back_side" />
+    </joint>
+
+    <!-- base -->
+
+    <!-- movable links-->
+    <link name="right_wheel">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/right_wheel.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+    <link name="left_wheel">
+        <visual>
+            <geometry>
+                <mesh filename="package://serbby_description/meshes/left_wheel.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </visual>
+    </link>
+    <!-- movable links-->
+
+
+
+
+
+    <!-- movable links-->
+
+
+
+    <joint name="base_link_to_right_wheel" type="continuous">
+        <origin rpy="0 0 0" xyz="0 0 0.085" />
+        <parent link="base_link" />
+        <child link="right_wheel" />
+        <axis xyz="0 1 0"/>
+        <limit effort="100"/>
+    </joint>
+    <joint name="base_link_to_left_wheel" type="continuous">
+        <origin rpy="0 0 0" xyz="0 0 0.085" />
+        <parent link="base_link" />
+        <child link="left_wheel" />
+        <axis xyz="0 1 0"/>
+        <limit effort="100"/>
+    </joint>
+
+    <!-- movable links-->
+
+
+
+
+</robot>
