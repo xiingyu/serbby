@@ -28,15 +28,28 @@ class SpringColorChecker(Node):
             'joy',
             self.joy_msg_sampling,
             qos_profile)
+        self.slam_subscriber = self.create_subscription(
+            Float32MultiArray,
+            'wheel_command',
+            self.slam_cmd_sampling,
+            qos_profile)
         self.img_subscriber = self.create_subscription(
             Image,
             'col_img',
             self.img_indicater,
             img_qos_profile)
         
-        self.max_speed = 10
+        self.max_speed = 5
         self.odrive_mode = 1.
         self.cvbrid = CvBridge()
+        
+        ### paramas declare ###
+        
+        self.L_cmd_vel = 0.
+        self.R_cmd_vel = 0.
+        
+        
+        #######################
     
     def img_indicater(self, msg) :
         current_img = self.cvbrid.imgmsg_to_cv2(msg)
@@ -45,6 +58,15 @@ class SpringColorChecker(Node):
 
         cv2.imshow("col_img", resized)
         cv2.waitKey(1)
+        
+    def slam_cmd_sampling(self, msg) :
+        data = msg.data
+        
+        self.L_cmd_vel = data[0]
+        self.R_cmd_vel = data[1]
+        
+        
+        return
 
 
     def joy_msg_sampling(self, msg):
@@ -52,7 +74,7 @@ class SpringColorChecker(Node):
         btn = msg.buttons
 
         if not (axes[2] == 1) :
-            self.max_speed = 10
+            self.max_speed = 5
             if btn[2] == 1 :
                 self.go()
             elif btn[1] == 1 :
@@ -65,7 +87,7 @@ class SpringColorChecker(Node):
                 self.joy_stick_data = [axes[1], axes[4]]
                 self.joy_pub()
         elif not (axes[5] == 1) :
-            self.max_speed = 18
+            self.max_speed = 10
             if btn[2] == 1 :
                 self.go()
             elif btn[1] == 1 :
@@ -78,7 +100,7 @@ class SpringColorChecker(Node):
                 self.joy_stick_data = [axes[1], axes[4]]
                 self.joy_pub()
         else :
-            self.stop()
+            self.joy_stick_data = [self.L_cmd_vel, self.R_cmd_vel]
             
     def joy_pub(self) :
         msg = Float32MultiArray()

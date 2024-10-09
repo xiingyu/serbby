@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
  RCLCPP_INFO(node->get_logger(), "[YDLIDAR INFO] Current ROS Driver Version: %s\n", ((std::string)ROS2Verision).c_str());
 
  CYdLidar laser;
- std::string str_optvalue = "/dev/ydlidar";
+ std::string str_optvalue = "/dev/ttyUSB0";
  node->declare_parameter<std::string>("port");
  node->get_parameter("port", str_optvalue);
  ///lidar port
