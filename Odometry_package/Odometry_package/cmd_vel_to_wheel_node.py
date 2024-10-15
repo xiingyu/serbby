@@ -36,11 +36,11 @@ class CmdVelToWheelNode(Node):
         # self.left_wheel_rps = min(self.left_wheel_rps, 50)
         # self.right_wheel_rps = min(self.right_wheel_rps, 50)
 
-        # if self.angular_z != 0:
-        #     if self.angular_z < -0.01:
-        #         self.right_wheel_rps = 0
-        #     elif self.angular_z > 0.01:
-        #         self.left_wheel_rps = 0
+        if self.angular_z != 0:
+            if self.angular_z < -0.01:
+                self.right_wheel_rps = 0
+            elif self.angular_z > 0.01:
+                self.left_wheel_rps = 0
 
         wheel = Float32MultiArray()
         wheel.data = [float(self.left_wheel_rps), float(self.right_wheel_rps)]
