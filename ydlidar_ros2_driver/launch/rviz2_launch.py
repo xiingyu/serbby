@@ -13,7 +13,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     share_dir = get_package_share_directory('ydlidar_ros2_driver')
 
-    map_file_name = 'lab_map.yaml'
+    map_file_name = 'map.yaml'
     map_dir = LaunchConfiguration(
         'map',
         default=os.path.join(

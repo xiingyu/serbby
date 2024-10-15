@@ -38,20 +38,20 @@ def generate_launch_description():
                                            description='FPath to the ROS2 parameters file to use.')
     
     return LaunchDescription([
-        Node(
-            ## Configure the TF of the robot to the origin of the map coordinates
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            output='screen',
-            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'odom', 'laser_frame']
-            ),
-        
         # Node(
+        #     ## Configure the TF of the robot to the origin of the map coordinates
         #     package='tf2_ros',
         #     executable='static_transform_publisher',
         #     output='screen',
-        #     arguments=['0.0', '0.0', '0.0','0.0', '0.0', '0.0','base_link','laser_frame'],
+        #     arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'odom', 'laser_frame']
         #     ),
+        
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            output='screen',
+            arguments=['0.0', '0.0', '0.0','0.0', '0.0', '0.0','base_link','laser_frame'],
+            ),
 
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates

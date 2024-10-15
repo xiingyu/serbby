@@ -37,6 +37,10 @@ class Odrive_car(Node):
         self.cur_mode = 'pos'
         self.pos_axis0 = 0.0
         self.pos_axis1 = 0.0
+        self.differ_pos_axis0 = 0.0
+        self.differ_pos_axis1 = 0.0
+        self.past_pos_axis0 = 0.0
+        self.past_pos_axis1 = 0.0
 
     def calibration(self):
         self.get_logger().info('Calibration START')
@@ -126,15 +130,23 @@ class Odrive_car(Node):
         
 
     def encoder_check(self):
-        self.pos_axis0 = self.my_drive.axis0.encoder.pos_estimate
-        self.pos_axis1 = self.my_drive.axis1.encoder.pos_estimate
+        self.pos_axis0 = self.my_drive.axis0.encoder.pos_estimate * 4.8 * 500
+        self.pos_axis1 = -self.my_drive.axis1.encoder.pos_estimate * 4.8 * 500
+        # self.differ_pos_axis0 = 0.0
+        # self.differ_pos_axis1 = 0.0
+        # self.past_pos_axis0 = 0.0
+        # self.past_pos_axis1 = 0.0
         #self.get_logger().info('Encoder positions: axis0 = {}, axis1 = {}'.format(self.pos_axis0, self.pos_axis1))
 
 
 #모터 엔코더 값 받아오는 콜백함수
     def encoder_callback(self):
         msg = Float32MultiArray()
-        msg.data = [self.pos_axis0, self.pos_axis1]
+        self.differ_pos_axis0 = self.pos_axis0 - self.past_pos_axis0 
+        self.differ_pos_axis1 = self.pos_axis1 - self.past_pos_axis1 
+        msg.data = [self.differ_pos_axis0, self.differ_pos_axis1]
+        self.past_pos_axis0 = self.pos_axis0
+        self.past_pos_axis1 = self.pos_axis1
         self.publisher.publish(msg)
         # self.get_logger().info(f'ENCODER Value: {self.pos_axis0} , {self.pos_axis1}')  
 

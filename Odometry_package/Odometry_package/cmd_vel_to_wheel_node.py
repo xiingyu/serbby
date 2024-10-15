@@ -20,8 +20,8 @@ class CmdVelToWheelNode(Node):
         self.timer = self.create_timer(1/10, self.update_rps)
 
     def cmd_vel_callback(self, msg):
-        self.linear_x = msg.linear.x / 2
-        self.angular_z = msg.angular.z / 2
+        self.linear_x = msg.linear.x / 1.25
+        self.angular_z = msg.angular.z / 1.25
 
         self.v_left = (self.linear_x - self.angular_z * self.wheel_separation / 2)
         self.v_right = (self.linear_x + self.angular_z * self.wheel_separation / 2)

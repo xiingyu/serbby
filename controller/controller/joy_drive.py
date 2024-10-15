@@ -100,7 +100,10 @@ class SpringColorChecker(Node):
                 self.joy_stick_data = [axes[1], axes[4]]
                 self.joy_pub()
         else :
+            msg = Float32MultiArray()
             self.joy_stick_data = [self.L_cmd_vel, self.R_cmd_vel]
+            msg.data = [self.odrive_mode,self.L_cmd_vel/1000*4.8, self.R_cmd_vel/1000*4.8]
+            self.control_publisher.publish(msg)
             
     def joy_pub(self) :
         msg = Float32MultiArray()

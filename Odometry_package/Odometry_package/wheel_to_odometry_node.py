@@ -31,7 +31,7 @@ class EncoderMotorControlNode(Node):
             angular_speed = (v_right - v_left) / self.wheel_separation
 
             twist = Twist()
-            twist.linear.x = linear_speed
+            twist.linear.x = -linear_speed
             twist.angular.z = angular_speed
             self.cmd_vel_pub.publish(twist)
 
