@@ -10,7 +10,7 @@ class CmdVelToWheelNode(Node):
         super().__init__('cmd_vel_to_wheel_node')
         self.ppr = 1000
         self.wheel_radius = 0.075
-        self.wheel_separation = 0.35
+        self.wheel_separation = 0.592
         self.linear_x = 0
         self.angular_z = 0
         self.left_wheel_rps = 0  
