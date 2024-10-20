@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'controller'
+package_name = 'linear_act'
 
 setup(
     name=package_name,
@@ -20,9 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'ramp_controll=controller.ramp_controll:main',
-            'complete_joy_drive=controller.complete_joy_drive:main',
-            'joy_drive=controller.joy_drive:main',
+        'pose_estimation=linear_act.pose_estimation:main',
         ],
     },
 )
