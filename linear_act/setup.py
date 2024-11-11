@@ -21,6 +21,10 @@ setup(
     entry_points={
         'console_scripts': [
         'pose_estimation=linear_act.pose_estimation:main',
+        
+        
+            
+        'table_setting=linear_act.table_setting:main',
         ],
     },
 )

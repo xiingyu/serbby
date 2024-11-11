@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, String
 from sensor_msgs.msg import Joy, Image
 
 
@@ -41,6 +41,13 @@ class SpringColorChecker(Node):
             self.img_indicater,
             img_qos_profile)
         
+        
+        self.arm_control = self.create_subscription(
+            String,
+            'arm_control',
+            self.arm_control_sub,
+            qos_profile)
+        
         self.ser = serial.Serial('/dev/ttyRS485', 9600, timeout=5)
         
         self.max_speed = 5
@@ -51,6 +58,8 @@ class SpringColorChecker(Node):
         
         self.L_cmd_vel = 0.
         self.R_cmd_vel = 0.
+        
+        self.arm_prev_state = "nothing"
         
         
         #######################
@@ -68,6 +77,35 @@ class SpringColorChecker(Node):
         
         self.L_cmd_vel = data[0]
         self.R_cmd_vel = data[1]
+        
+        
+        return
+    
+    def arm_control_sub(self, msg) :
+        data = msg.data.strip()
+        # print(f'data : {data}')
+        
+        if self.arm_prev_state == data :
+            pass
+        
+        elif data == "u" :
+            self.ser.write(b'u')        
+            self.ser.write('u'.encode())
+            self.get_logger().info(f'serial send "u"')
+        elif data == "d" :
+            self.ser.write('d'.encode()) 
+            self.get_logger().info(f'serial send "d"')
+        elif data == "s" :
+            self.ser.write('s'.encode())    
+            self.get_logger().info(f'serial send "s"')
+        else :
+            self.get_logger().info(f'i got data : {data}, and type is {type(data)}')
+            pass
+        
+        
+        
+        
+        self.arm_prev_state = data
         
         
         return
