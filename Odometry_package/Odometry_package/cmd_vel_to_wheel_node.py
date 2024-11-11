@@ -10,14 +10,14 @@ class CmdVelToWheelNode(Node):
         super().__init__('cmd_vel_to_wheel_node')
         self.ppr = 1000
         self.wheel_radius = 0.075
-        self.wheel_separation = 0.594
+        self.wheel_separation = 0.592
         self.linear_x = 0
         self.angular_z = 0
         self.left_wheel_rps = 0  
         self.right_wheel_rps = 0
         self.cmd_vel_sub = self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_callback, QoSProfile(depth=10))
         self.wheel_command_pub = self.create_publisher(Float32MultiArray, 'wheel_command', QoSProfile(depth=10))
-        self.timer = self.create_timer(1/10, self.update_rps)
+        self.timer = self.create_timer(1, self.update_rps)
 
     def cmd_vel_callback(self, msg):
         self.linear_x = msg.linear.x / 1.25
@@ -46,7 +46,7 @@ class CmdVelToWheelNode(Node):
         wheel.data = [float(self.left_wheel_rps), float(self.right_wheel_rps)]
 
         self.wheel_command_pub.publish(wheel)
-        self.get_logger().info(f"left_wheel_rps : {self.left_wheel_rps}, right_wheel_rps : {self.right_wheel_rps}")
+        self.get_logger().info(f"L : {self.left_wheel_rps}, R : {self.right_wheel_rps}")
 
 def main(args=None):
     rclpy.init(args=args)

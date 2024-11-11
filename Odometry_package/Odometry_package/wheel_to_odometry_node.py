@@ -9,7 +9,7 @@ class EncoderMotorControlNode(Node):
     def __init__(self):
         super().__init__('wheel_to_odometry_node')
         self.wheel_radius = 0.075  
-        self.wheel_separation = 0.594  
+        self.wheel_separation = 0.592  
         self.ppr = 1000
 
         self.create_subscription(Float32MultiArray, 'Odrive_encoder', self.wheel_command_callback, QoSProfile(depth=10))
@@ -31,11 +31,11 @@ class EncoderMotorControlNode(Node):
             angular_speed = (v_right - v_left) / self.wheel_separation
 
             twist = Twist()
-            twist.linear.x = -linear_speed
+            twist.linear.x = linear_speed
             twist.angular.z = angular_speed
             self.cmd_vel_pub.publish(twist)
 
-            self.get_logger().info(f"linear.x = {linear_speed}, angular.z = {angular_speed}")
+            self.get_logger().info(f"x = {linear_speed}, z = {angular_speed}")
         except ValueError:
             self.get_logger().info("error")
 

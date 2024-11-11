@@ -76,8 +76,14 @@ install(TARGETS
     ${PROJECT_NAME}_node ${PROJECT_NAME}_client
     DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch params startup config
+install(DIRECTORY launch params startup config rviz map
     DESTINATION share/${PROJECT_NAME})
+    
+
+install(
+  DIRECTORY map config
+  DESTINATION share/${PROJECT_NAME}
+ )
 
 if(BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)
