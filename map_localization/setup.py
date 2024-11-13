@@ -13,7 +13,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name, 'launch'), glob('launch/*_launch.py'))
+        (os.path.join('share', package_name, 'launch'), glob('launch/*_launch.py')),
+        (os.path.join('share', package_name, 'params'), glob('params/*.yaml'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,7 +27,8 @@ setup(
         'console_scripts': [
             'coordinate_controler = map_localization.coordinate_controler:main',
             'current_coordinate = map_localization.current_coordinate:main',
-            'order_keyboard = map_localization.order_keyboard:main'
+            'order_keyboard = map_localization.order_keyboard:main',
+            'keyboard_test = map_localization.keyboard_test:main',
         ],
     },
 )
