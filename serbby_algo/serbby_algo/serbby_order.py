@@ -1,5 +1,4 @@
 import rclpy  
-import threading
 import yaml
 import os
 
@@ -16,22 +15,22 @@ class serbby_order(Node):
         super().__init__('order_keyboard')
         self.location_sub = self.create_subscription(PoseStamped, 'current_location', self.coordinate_callback, 10)
         self.request_pub = self.create_publisher(String, 'request_coordinate', 10)
-
         self.drive_coord = self.create_publisher(PoseStamped, 'drive', 10)
         self.state_sub = self.create_subscription(String, 'state', self.state_callback, 10)
         
+        #추가
+        self.order_sub = self.create_subscription(String, '/order', self.sent_message, 10)
+        self.move_num_pub = self.create_publisher(String, '/num', 10)
+
         self.coordinate_list = coord_lists
+
         #### addition ####
         with open(params_dir, 'r') as f:
             file = yaml.full_load(f)
             self.coordinate_list = file
         coord_lists = self.coordinate_list
-            
-        
         #####################
         
-        
-
         self.num_store = None
 
     def state_callback(self, msg):
@@ -54,6 +53,9 @@ class serbby_order(Node):
         self.get_logger().info("좌표 요청중")
         self.request_pub.publish(String(data="save"))
 
+    def send_num_msg(self, num):
+        self.move_num_pub.publish(String(data = num))
+
     def send_drive_command(self, num):
         if num in self.coordinate_list:
             goal_msg = PoseStamped()
@@ -72,26 +74,25 @@ class serbby_order(Node):
         for num, coords in self.coordinate_list.items():
             self.get_logger().info(f"번호 {num}: \nx = {coords['x']} \ny = {coords['y']} \nz = {coords['z']} \nw = {coords['w']}")
 
-    def sent_message(self):
-        while True:
-            order = input("s : 위치 저장 , g : 위치 이동, d : 위치 열람\n").strip()
-            if order == 's':
-                self.num_store = input('저장할 위치 번호를 입력하시오').strip()
-                self.request_current_location()
-            elif order == 'g':
-                num_drive = input("이동할 위치 번호를 입력하시오").strip()
-                self.send_drive_command(num_drive)
-            elif order == 'd':
-                self.print_coordinates()
-            else:
-                self.get_logger().info("잘못된 입력입니다. 다시 입력해주세요.")
+    def sent_message(self, msg):
+        order_data = msg.data.split(' ')
+        order_word = order_data[0]
+        order_num = order_data[1]
+        
+        if order_word == 's':
+            self.num_store = order_num
+            self.request_current_location()
+        elif order_word == 'g':
+            self.send_drive_command(order_num)
+            self.send_num_msg(order_num)
+        elif order_word == 'd':
+            self.print_coordinates()
+        else:
+            self.get_logger().info("잘못된 입력입니다. 다시 입력해주세요.")
 
 def main(args=None):
     rclpy.init(args=args)
     node = serbby_order()
-
-    input_thread = threading.Thread(target=node.sent_message)
-    input_thread.start()
 
     try:
         rclpy.spin(node)
@@ -102,7 +103,6 @@ def main(args=None):
             yaml.dump(coord_lists, f)
         node.destroy_node()
         rclpy.shutdown()
-        input_thread.join()
 
 if __name__ == '__main__':
     main()

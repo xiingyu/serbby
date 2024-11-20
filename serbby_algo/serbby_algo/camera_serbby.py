@@ -56,14 +56,21 @@ class PersonDistancePub(Node):
         self.distance_data_pub = self.create_publisher(Float64, 'distance_data', qos_profile)
         self.goal_sub = self.create_subscription(
             Float32MultiArray,
-            'col_img',
+            'goal_serbby',
             self.goal_sub_callback,
             qos_profile)
         self.robot_state = self.create_subscription(
             String,
-            'col_img',
+            'robot_state',
             self.goal_sub_callback,
             qos_profile)
+        self.robot_state = self.create_subscription(
+            String,
+            'main_state',
+            self.goal_sub_callback,
+            qos_profile)
+        
+        self.state_sub = self.create_subscription(String, 'state', self.state_callback, qos_profile)
         
 
         self.pipeline = rs.pipeline()
@@ -115,10 +122,7 @@ class PersonDistancePub(Node):
         cy = depth_intrinsics.ppy
         print(fx, fy, cx, cy)
 
-        # 카메라 매트릭스 정의
         self.k = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
-
-        # 왜곡 계수 설정 (실제 카메라에 맞게 수정 가능)
         self.d = np.zeros((5, 1), dtype=np.float32)
         
         
@@ -144,7 +148,42 @@ class PersonDistancePub(Node):
         self.annotated_img = np.zeros((self.img_size_y, self.img_size_x, 3), dtype=np.uint8)
         self.drawed_frame = np.zeros((self.img_size_y, self.img_size_x, 3), dtype=np.uint8)
         ##################
+        
+        
+        ### param init ###
+        
+        self.robot_state = "idle"
+        self.main_state = "idle"
+        self.main_algo = "idle"
+        
+        ###
+        ### flag init ###
+        
+        self.bottom_aruco = False
+        
+        ###
+        
+        
+        
         self.get_logger().info(f'init clear')
+        
+        
+        
+        
+    def state_callback(self, msg) :
+        self.get_logger().info(f"이동 상태: {msg.data}")
+        ## data lists
+        # 목표 전송 실패
+        # 목표 전송 성공
+        # 도착
+        # 실패
+        # 에러
+        
+        ## if robot state ~~이런거 해야됨
+        
+        
+        
+        
         
         
     

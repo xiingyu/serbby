@@ -23,6 +23,7 @@ setup(
         'test_1=serbby_algo.test_1:main',
         'dual_cam_test=serbby_algo.dual_cam_test:main',
         'camera_serbby=serbby_algo.camera_serbby:main',
+        'input_algo=serbby_algo.input_algo:main',
         ],
     },
 )
