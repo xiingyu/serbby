@@ -61,11 +61,13 @@ class SpringColorChecker(Node):
         
         if in_data == "setting" :
             main_state_msg.data = in_data
-            self.main_state.publish(robot_state_msg)
+            self.main_state.publish(main_state_msg)
             self.get_logger().info(f'set main state setting')
+            in_data = sys.stdin.readline().strip()
+            self.get_logger().info(f'inout goal (ex, s 1)')
         elif in_data == "decay" :
             main_state_msg.data = in_data
-            self.main_state.publish(robot_state_msg)
+            self.main_state.publish(main_state_msg)
             self.get_logger().info(f'set main state decay')
         else :
             self.get_logger().info(f'Invalid command : {in_data}')
