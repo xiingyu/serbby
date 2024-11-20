@@ -207,16 +207,16 @@ class TableSetting(Node):
                 self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
                 
             if self.center_y <= int(img_size_y * 0.45):
-                msg.data = "u"
-                self.arm_control.publish(msg)
+                # msg.data = "u"
+                # self.arm_control.publish(msg)
                 self.get_logger().info(f'send message {msg.data}')
             elif self.center_y >= int(img_size_y * 0.55):
-                msg.data = "d"
-                self.arm_control.publish(msg)
+                # msg.data = "d"
+                # self.arm_control.publish(msg)
                 self.get_logger().info(f'send message {msg.data}')
             else :
-                msg.data = "s"
-                self.arm_control.publish(msg)
+                # msg.data = "s"
+                # self.arm_control.publish(msg)
                 self.get_logger().info(f'send message {msg.data}')
                 
                 

@@ -54,6 +54,11 @@ class PersonDistancePub(Node):
         self.depth_frame_pub = self.create_publisher(Image, 'depth_data', qos_profile)
         self.color_frame_pub = self.create_publisher(Image, 'color_data', qos_profile)
         self.distance_data_pub = self.create_publisher(Float64, 'distance_data', qos_profile)
+        
+        self.robot_state_pub = self.create_publisher(
+            String,
+            'robot_state',
+            qos_profile)
         self.goal_sub = self.create_subscription(
             Float32MultiArray,
             'goal_serbby',
@@ -64,11 +69,12 @@ class PersonDistancePub(Node):
             'robot_state',
             self.goal_sub_callback,
             qos_profile)
-        self.robot_state = self.create_subscription(
+        self.main_state = self.create_subscription(
             String,
             'main_state',
             self.goal_sub_callback,
             qos_profile)
+        self.move_num_pub = self.create_publisher(String, '/num', self.move_num_clear,10)
         
         self.state_sub = self.create_subscription(String, 'state', self.state_callback, qos_profile)
         
@@ -138,6 +144,7 @@ class PersonDistancePub(Node):
         self.timer1 = self.create_timer(1/self.frame_rate, self.cam_cap)
         self.timer2 = self.create_timer(1/self.frame_rate, self.depth_cap)
         self.timer3 = self.create_timer(1/self.frame_rate, self.img_show)
+        self.timer4 = self.create_timer(1/self.frame_rate, self.camera_positioning)
         self.cvbrid = CvBridge()
         
         ### image init ###
@@ -151,14 +158,17 @@ class PersonDistancePub(Node):
         
         
         ### param init ###
-        
+        self.goal_num = 0
         self.robot_state = "idle"
         self.main_state = "idle"
-        self.main_algo = "idle"
         
+        
+        self.center_x = 0
+        self.center_y = 0
         ###
         ### flag init ###
         
+        self.update_frame_flag = True
         self.bottom_aruco = False
         
         ###
@@ -166,24 +176,93 @@ class PersonDistancePub(Node):
         
         
         self.get_logger().info(f'init clear')
+            
         
-        
-        
+    ##aruco marker는,, home이 1
+    # 이제 1번테이블은 상판이 10, 바닥이 11  depth가 +1인거
+    #     2번테이블은 상판이 20, 바닥이 21    
+    def move_num_clear(self, msg) :
+        self.goal_num = int(msg.data)
         
     def state_callback(self, msg) :
-        self.get_logger().info(f"이동 상태: {msg.data}")
-        ## data lists
+        self.get_logger().info(f"\033[1;32m 이동 상태: {msg.data} \033[0m")
+        #이걸 input하는데에서 받아야됨. 이거 삭제 예정
+        # data = msg.data
+        # if (data == "도착") & (self.robot_state == "got_goal") :
+        #     self.robot_state = 'arrive'
+        #     self.get_logger().info(f"\033[1;32m 이동 상태: {msg.data} \033[0m")
+        # elif (data == "도착") & (self.robot_state == "go_home") :
+        #     self.robot_state = 'idle'
+        #     self.get_logger().info(f"\033[1;32m 이동 상태: {msg.data} \033[0m")
+        # self.get_logger().info(f"이동 상태: {msg.data}")
+        # ## data lists
         # 목표 전송 실패
         # 목표 전송 성공
         # 도착
         # 실패
         # 에러
+        return
+        
+        
+    def camera_positioning(self) :
         
         ## if robot state ~~이런거 해야됨
-        
-        
-        
-        
+        if self.robot_state == "arive" :
+            ## setting
+            #책상의 aruco 찾고 뒤로 빼고 자리 찾고 넣어야함.
+            if self.main_state == "setting" :
+                self.update_frame_flag = False
+                gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
+                aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+                parameters = cv2.aruco.DetectorParameters_create()
+                corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+
+                if ids is not None and len(ids) > 0:
+                    # msg.data = "s"
+                    # self.arm_control.publish(msg)
+                    for i in range(len(ids)):
+                        if ids[i][0] == (self.goal_num *10 + 1):  # ID가 11인 경우에만 처리
+                            rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+                            self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
+                            cv2.aruco.drawDetectedMarkers(self.color_image, corners)
+                            
+                            
+                            corner_points = corners[i][0]
+                            self.center_x = int(np.mean(corner_points[:, 0]))  # x 좌표의 평균
+                            self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
+                self.update_frame_flag = True
+                    
+            ## decay
+            #상판의 aruco 찾고 자리 찾고 넣어야함.
+            elif self.main_state == "decay" :
+                self.update_frame_flag = False
+                gray = cv2.cvtColor(self.c920, cv2.COLOR_BGR2GRAY)
+                aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+                parameters = cv2.aruco.DetectorParameters_create()
+                corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+
+                if ids is not None and len(ids) > 0:
+                    # msg.data = "s"
+                    # self.arm_control.publish(msg)
+                    for i in range(len(ids)):
+                        if ids[i][0] == (self.goal_num *10 + 0):  # ID가 11인 경우에만 처리
+                            rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+                            self.c920 = self.draw_axis(self.c920, self.k, self.d, rvec, tvec, 0.01)
+                            cv2.aruco.drawDetectedMarkers(self.c920, corners)
+                            
+                            
+                            corner_points = corners[i][0]
+                            self.center_x = int(np.mean(corner_points[:, 0]))  # x 좌표의 평균
+                            self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
+                self.update_frame_flag = True
+                
+            
+            
+            else :
+                self.update_frame_flag = True
+                self.get_logger().info( "\033[1;31m Invalid State \033[0m")
+        else :
+            self.update_frame_flag = True
         
         
     
@@ -210,76 +289,78 @@ class PersonDistancePub(Node):
         
         
     def cam_cap(self) :
-        ret, self.c920 = self.cap.read()
-        
-        if not ret :
-            self.get_logger().info(f'c920 capture fail')
+        if self.update_frame_flag :
+            ret, self.c920 = self.cap.read()
+            
+            if not ret :
+                self.get_logger().info(f'c920 capture fail')
         
             
         
         
 
     def depth_cap(self):
-        distance_msg = Float64()
-        
-        self.frames = self.pipeline.wait_for_frames()
-        
-        self.aligned_frames = self.align.process(self.frames)
-        
-        self.aligned_depth_frame = self.aligned_frames.get_depth_frame()
-        self.color_frame = self.aligned_frames.get_color_frame()
-        
-        self.depth_image = np.asanyarray(self.aligned_depth_frame.get_data())
-        self.color_image = np.asanyarray(self.color_frame.get_data())
-        
-        
-        gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
-        aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
-        parameters = cv2.aruco.DetectorParameters_create()
-        corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        if self.update_frame_flag :
+            distance_msg = Float64()
+            
+            self.frames = self.pipeline.wait_for_frames()
+            
+            self.aligned_frames = self.align.process(self.frames)
+            
+            self.aligned_depth_frame = self.aligned_frames.get_depth_frame()
+            self.color_frame = self.aligned_frames.get_color_frame()
+            
+            self.depth_image = np.asanyarray(self.aligned_depth_frame.get_data())
+            self.color_image = np.asanyarray(self.color_frame.get_data())
+            
+            
+            # gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
+            # aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+            # parameters = cv2.aruco.DetectorParameters_create()
+            # corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
-        if ids is not None and len(ids) > 0:
-            for i in range(len(ids)):
-                rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
-                self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
-                cv2.aruco.drawDetectedMarkers(self.color_image, corners)
-        
-        
-        ###yolo's turn
-        
-        result = self.model.predict(self.color_image, classes=[0., 67.], conf= 0.6, max_det = 1)
-        self.annotated_img = result[0].plot()
-        if len(result[0].boxes.cls) :
-            print(result[0].boxes.cls)
-            object_xy = np.array(result[0].boxes.xywh.detach().numpy().tolist()[0], dtype='int')
+            # if ids is not None and len(ids) > 0:
+            #     for i in range(len(ids)):
+            #         rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+            #         self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
+            #         cv2.aruco.drawDetectedMarkers(self.color_image, corners)
             
-            # print(object_xy[0], object_xy[1]) ### 640 by 480 
             
-            distance = self.depth_image[object_xy[1]][object_xy[0]] * self.depth_scale    
-            # print(f'distance between cam and object is {distance:.4f} meters')
-            self.get_logger().info(f'distance between cam and object is {distance:.4f} meters')
+            ###yolo's turn
             
-            self.annotated_img = cv2.circle(self.annotated_img,((object_xy[0]),(object_xy[1])),10,(0,0,255), -1, cv2.LINE_AA)
+            result = self.model.predict(self.color_image, classes=[0., 67.], conf= 0.6, max_det = 1)
+            self.annotated_img = result[0].plot()
+            if len(result[0].boxes.cls) :
+                print(result[0].boxes.cls)
+                object_xy = np.array(result[0].boxes.xywh.detach().numpy().tolist()[0], dtype='int')
+                
+                # print(object_xy[0], object_xy[1]) ### 640 by 480 
+                
+                distance = self.depth_image[object_xy[1]][object_xy[0]] * self.depth_scale    
+                # print(f'distance between cam and object is {distance:.4f} meters')
+                self.get_logger().info(f'distance between cam and object is {distance:.4f} meters')
+                
+                self.annotated_img = cv2.circle(self.annotated_img,((object_xy[0]),(object_xy[1])),10,(0,0,255), -1, cv2.LINE_AA)
+                
+                distance_msg.data = float(distance)
+                self.distance_data_pub.publish(distance_msg)
+                
+            else :
+                self.get_logger().info(f'any object detected')
+                
             
-            distance_msg.data = float(distance)
-            self.distance_data_pub.publish(distance_msg)
             
-        else :
-            self.get_logger().info(f'any object detected')
             
-        
-        
-        
-        
-        ###end of yolo
-        
-        
-        # grey_color = 0
-        # depth_image_3d = np.dstack((depth_image, depth_image, depth_image)) #depth image is 1 channel, color is 3 channels
-        # bg_removed = np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), grey_color, color_image) #need to search what is np.where.
-        
-        # self.depth_frame_pub.publish(self.cvbrid.cv2_to_imgmsg(bg_removed))
-        # self.color_frame_pub.publish(self.cvbrid.cv2_to_imgmsg(self.annotated_img))
+            
+            ###end of yolo
+            
+            
+            # grey_color = 0
+            # depth_image_3d = np.dstack((depth_image, depth_image, depth_image)) #depth image is 1 channel, color is 3 channels
+            # bg_removed = np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), grey_color, color_image) #need to search what is np.where.
+            
+            # self.depth_frame_pub.publish(self.cvbrid.cv2_to_imgmsg(bg_removed))
+            # self.color_frame_pub.publish(self.cvbrid.cv2_to_imgmsg(self.annotated_img))
         
         
         
