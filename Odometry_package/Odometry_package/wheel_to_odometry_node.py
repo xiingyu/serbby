@@ -14,6 +14,11 @@ class EncoderMotorControlNode(Node):
 
         self.create_subscription(Float32MultiArray, 'Odrive_encoder', self.wheel_command_callback, QoSProfile(depth=10))
         self.cmd_vel_pub = self.create_publisher(Twist, 'wheel_cmd_vel', QoSProfile(depth=10))
+        
+        ### bug fix ###
+        self.prev_linear_speed = 0.
+        self.prev_anular_speed = 0.
+        ##############
 
     def wheel_command_callback(self, msg):
         try:
@@ -29,13 +34,20 @@ class EncoderMotorControlNode(Node):
 
             linear_speed = (v_left + v_right) / 2 
             angular_speed = (v_right - v_left) / self.wheel_separation
+            
+            if ((self.prev_linear_speed == linear_speed) & (self.prev_anular_speed == angular_speed)) :
+                self.prev_linear_speed = linear_speed
+                self.prev_anular_speed = angular_speed
+                pass
+            else :
+                twist = Twist()
+                twist.linear.x = - linear_speed
+                twist.angular.z = angular_speed
+                self.cmd_vel_pub.publish(twist)
 
-            twist = Twist()
-            twist.linear.x = - linear_speed
-            twist.angular.z = angular_speed
-            self.cmd_vel_pub.publish(twist)
-
-            self.get_logger().info(f"x = {linear_speed}, z = {angular_speed}")
+                self.get_logger().info(f"x = {linear_speed}, z = {angular_speed}")
+                self.prev_linear_speed = linear_speed
+                self.prev_anular_speed = angular_speed
         except ValueError:
             self.get_logger().info("error")
 

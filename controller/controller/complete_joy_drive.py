@@ -58,6 +58,12 @@ class CompleteJoyDrive(Node):
             'auto_control',
             self.auto_control, 
             qos_profile)
+        
+        self.control_subscriber = self.create_subscription(
+            Float32MultiArray, 
+            'abs_control',
+            self.abs_control, 
+            qos_profile)
         self.ser = serial.Serial('/dev/ttyRS485', 9600, timeout=5)
         
         self.max_speed = 5
@@ -82,7 +88,18 @@ class CompleteJoyDrive(Node):
         self.ser.write('u'.encode()) 
         time.sleep(1)
         # self.get_logger().info(f'serial send "d"')
+        self.cur_time = time.time()
         
+    def abs_control(self, msg) :
+        ctl_data = msg.data
+        msg = Float32MultiArray()
+        # self.odrive_mode = 2. 
+        msg.data = [ctl_data[1],ctl_data[1], ctl_data[2] ]
+        self.control_publisher.publish(msg)
+        self.cur_time = time.time()
+        
+        
+                
         
     def serial_read(self) :
         if self.ser.in_waiting > 0:  # 수신 데이터가 있을 경우
@@ -207,12 +224,14 @@ class CompleteJoyDrive(Node):
             self.get_logger().info(f'serial send "r"')
             
         else :
-            msg = Float32MultiArray()
-            self.joy_stick_data = [self.L_cmd_vel, self.R_cmd_vel]
-            msg.data = [self.odrive_mode,self.L_cmd_vel/1000*4.8, self.R_cmd_vel/1000*4.8]
-            self.control_publisher.publish(msg)
-            # self.get_logger().info(f"\033[1;32m {msg.data} \033[0m")
-                
+            if time.time()- self.cur_time > 4 :
+                msg = Float32MultiArray()
+                self.joy_stick_data = [self.L_cmd_vel, self.R_cmd_vel]
+                msg.data = [self.odrive_mode,self.L_cmd_vel/1000*4.8, self.R_cmd_vel/1000*4.8]
+                self.control_publisher.publish(msg)
+                self.get_logger().info(f"\033[1;32m {msg.data} \033[0m")
+            else :
+                pass
             # self.L_cmd_vel = 0.
             # self.R_cmd_vel = 0.
             # self.odrive_mode = 1. 

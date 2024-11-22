@@ -2,7 +2,7 @@ import rclpy
 import yaml
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from std_msgs.msg import Float32MultiArray, String, Bool
+from std_msgs.msg import Float32MultiArray, String, Bool, Int32
 from geometry_msgs.msg import PoseStamped
 
 from cv_bridge import CvBridge
@@ -143,8 +143,10 @@ class SpringColorChecker(Node):
 
 
     def send_table_num(self, num):
+        number = String()
         self.get_logger().info(f"{num} 번 테이블로 이동합니다.")
-        self.order_pub.publish(String(data = num))
+        number.data = num
+        self.order_pub.publish(number)
 
 
 

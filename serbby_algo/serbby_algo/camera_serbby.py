@@ -59,6 +59,10 @@ class PersonDistancePub(Node):
             Bool, 
             'cam_flag_topic', 
             10)
+        self.abs_control_pub = self.create_publisher(
+            Float32MultiArray, 
+            'abs_control',
+            qos_profile)
         
         self.robot_state_pub = self.create_publisher(String, 'robot_state', qos_profile)
         self.goal_sub = self.create_subscription(Float32MultiArray,'goal_serbby',self.goal_sub_callback, qos_profile)
@@ -89,6 +93,11 @@ class PersonDistancePub(Node):
             self.serial_read,
             qos_profile)
 
+        self.odrive_direct_control = self.create_publisher(
+            Float32MultiArray,
+            'Odrive_control',
+            qos_profile)
+        
         self.pipeline = rs.pipeline()
         self.config = rs.config()
 
@@ -185,9 +194,11 @@ class PersonDistancePub(Node):
         
         self.update_frame_flag = True
         self.bottom_aruco = False
+        self.yawing_degree = 0.
         
         ###
-        
+        self.robot_width = 560 #mm
+        self.wheel_size = 175 #mm
         
         
         self.get_logger().info(f'init clear')
@@ -234,55 +245,86 @@ class PersonDistancePub(Node):
         if self.robot_state == "arrive" or  self.robot_state=="putting" or self.robot_state == "taking":
             ## setting
             #책상의 aruco 찾고 뒤로 빼고 자리 찾고 넣어야함.
-            print("first if passed")
+            # print("first if passed")
             if self.main_state == "setting" :
-                print("sedond if passed")
+                # print("main state is setting")
                 # self.update_frame_flag = False
                 gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
                 aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
                 parameters = cv2.aruco.DetectorParameters_create()
                 corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
+                print(ids)
                 if ids is not None and len(ids) > 0:
+                    # print("id is exist")
                     # msg.data = "s"
                     # self.arm_control.publish(msg)
                     for i in range(len(ids)):
+                        # print("ive get in for")
                         # if ids[i][0] == (self.goal_num *10 + 1):  # ID가 11인 경우에만 처리
                         if True :
                             rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
-                            self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
                             cv2.aruco.drawDetectedMarkers(self.color_image, corners)
+                            self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
+                            # print("pass aruco draw")
                             
                             
                             corner_points = corners[i][0]
                             self.center_x = int(np.mean(corner_points[:, 0]))  # x 좌표의 평균
                             self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
+                else :      
+                    self.center_x = 0
+                    self.center_y = 0
+                            # print(self.center_x)
                 # self.update_frame_flag = True
                 if self.substate == "aruco" :
+                    
                     if (self.center_x <= (self.img_size_x * 0.9)) & (self.center_x >= (self.img_size_x * 0.1)) :
                         if (self.center_y <= (self.img_size_y * 0.7)) & (self.center_y >= (self.img_size_y * 0.5)) :
-                            # self.stop()
-                            self.get_logger().info("\033[1;32m center_x is in range \033[0m")
-                    
-                            cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
-                            self.control_publisher.publish(cnt_data)
-                            cur_time = time.time()
-                            while (time.time()- cur_time) < 3 :
-                                cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
-                                self.control_publisher.publish(cnt_data)
-                                time.sleep(0.1)
+                            if abs(self.yawing_degree) > 1.8 :
+                                drive_msg = Float32MultiArray()
+                                movement_distance = self.robot_width * np.pi / 180 * self.yawing_degree
+                                L_rotate = - (movement_distance /self.wheel_size / np.pi)
+                                R_rotate = (movement_distance /self.wheel_size / np.pi)
+                                drive_msg.data = [2., L_rotate, R_rotate]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.get_logger().info(f"\033[1;38m {drive_msg.data[1]}, {drive_msg.data[2]} \033[0m")
+                        
+                                cur_time = time.time()
+                                self.delay(cur_time, 5)
+                            else :
+                                drive_msg = Float32MultiArray()
+                                # self.stop()
+                                # self.get_logger().info("\033[1;32m center_x is in range \033[0m")
+                        
+                                # cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                                # self.control_publisher.publish(cnt_data)
+                                cur_time = time.time()
+                                # # while (time.time()- cur_time) < 3 :
+                                # #     cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                                # #     self.control_publisher.publish(cnt_data)
+                                # #     time.sleep(0.1)
                                 
-                            # self.delay(cur_time, 5)
-                            print("before sleep")
-                            time.sleep(8)
-                            print("after sleep")
-                            arm_cmd.data = "c"
-                            self.arm_control.publish(arm_cmd)
-                            self.substate = "liftdown"
-                            self.get_logger().info("change substate to liftdown")
-                            
-                            cnt_data.data = [1., 0. ,0.]
-                            self.control_publisher.publish(cnt_data)
+                                # cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                                # self.control_publisher.publish(cnt_data)
+                                drive_msg.data = [2., 4.,4.]
+                                self.abs_control_pub.publish(drive_msg)
+                                drive_msg.data = [2., 4.,4.]
+                                self.abs_control_pub.publish(drive_msg)
+                                drive_msg.data = [2., 4.,4.]
+                                self.abs_control_pub.publish(drive_msg)
+                                    
+                                self.delay(cur_time, 3)
+                                # print("before sleep")
+                                # time.sleep(8)
+                                # print("after sleep")
+                                arm_cmd.data = "c"
+                                self.arm_control.publish(arm_cmd)
+                                self.substate = "liftdown"
+                                self.get_logger().info("change substate to liftdown")
+                                
+                                cnt_data.data = [1., 0. ,0.]
+                                self.control_publisher.publish(cnt_data)
                             
                         elif self.center_y >= (self.img_size_y * 0.6) : 
                             cnt_data = Float32MultiArray()
@@ -296,7 +338,7 @@ class PersonDistancePub(Node):
                         else :
                             pass
                     else :
-                        self.get_logger().info("\033[1;31m center_x is out of range \033[0m")
+                        self.get_logger().info(f"\033[1;31m center_x is out of range : {self.center_x} \033[0m")
                 elif self.substate == "liftdown" :
                     self.get_logger().info(f"\033[1;36m substate : {self.substate}  read_date : {self.read_data} \033[0m")
                     if self.read_data and self.read_data[0] != "o" :
@@ -312,7 +354,7 @@ class PersonDistancePub(Node):
                         arm_cmd.data = "d"
                         self.arm_control.publish(arm_cmd)
                         cur_time = time.time()
-                        self.delay(cur_time, 1)
+                        self.delay(cur_time, 3)
                         
                         
                         arm_cmd.data = "s"
@@ -383,7 +425,31 @@ class PersonDistancePub(Node):
         # frame = cv2.line(frame, tuple(axis_points_2d[0].ravel()), tuple(axis_points_2d[1].ravel()), (0, 0, 255), 2)
         # frame = cv2.line(frame, tuple(axis_points_2d[0].ravel()), tuple(axis_points_2d[2].ravel()), (0, 255, 0), 2)
         # frame = cv2.line(frame, tuple(axis_points_2d[0].ravel()), tuple(axis_points_2d[3].ravel()), (255, 0, 0), 2)
+        
+        rot_mat, _ = cv2.Rodrigues(rvec) # 회전 백터 rvec를 회전 행렬 rot_mat로 변환
+        theta_x = np.arctan2(rot_mat[2, 1], rot_mat[2, 2]) # x축 회전 각도
+        theta_y = np.arctan2(-rot_mat[2, 0], np.sqrt(rot_mat[2, 1] ** 2 + rot_mat[2, 2] ** 2)) # y축 회전 각도
+        theta_z = np.arctan2(rot_mat[1, 0], rot_mat[0, 0]) # z축 회전 각도
+        # print(axis_points_2d[0][0])
+        # for i in range(len(axis_points_2d)) :
+            
+        #     print(f'axis_points_2d [{i}] : {axis_points_2d[i]}')
+            
+        # cv2.circle(frame, (self.center_x, self.center_y), 10, (0,0,255), -1 , cv2.LINE_AA)
+        #x pitch
+        #z roll
+        #y yaw
+        
+        
+        theta_x_deg = np.degrees(theta_x) # degree로 변환
+        theta_y_deg = np.degrees(theta_y) # degree로 변환
+        theta_z_deg = np.degrees(theta_z) # degree로 변환
+        self.yawing_degree = theta_z_deg
+        print(f'yawing degree is {self.yawing_degree}')
 
+        cv2.putText(frame, f'X: {theta_x_deg:.2f}', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2) # x축 회전 각도 표시
+        cv2.putText(frame, f'Y: {theta_y_deg:.2f}', (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2) # y축 회전 각도 표시
+        cv2.putText(frame, f'Z: {theta_z_deg:.2f}', (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2) # z축 회전 각도 표시
         return frame
     
     def delay(self, prev_times, seconds) : 
@@ -494,7 +560,7 @@ class PersonDistancePub(Node):
         
     def main_state_sub_callback(self,msg) :
         self.main_state = msg.data
-        self.get_logger().info(f"\033[1;35m robot_state : {self.main_state} \033[0m")
+        self.get_logger().info(f"\033[1;35m main_state : {self.main_state} \033[0m")
         
         
     def goal_sub_callback(self,msg) :
