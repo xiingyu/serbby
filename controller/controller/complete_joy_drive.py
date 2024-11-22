@@ -9,12 +9,13 @@ import cv2
 from cv_bridge import CvBridge
 
 import serial
+import time
 
 
 
-class SpringColorChecker(Node):
+class CompleteJoyDrive(Node):
     def __init__(self):
-        super().__init__('spring_color_checker')
+        super().__init__('complete_joy_drive')
         
         qos_profile = QoSProfile(depth=10)
         img_qos_profile = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -24,6 +25,10 @@ class SpringColorChecker(Node):
         self.control_publisher = self.create_publisher(
             Float32MultiArray, 
             'Odrive_control', 
+            qos_profile)
+        self.serial_read_data = self.create_publisher(
+            String, 
+            'read_rs485', 
             qos_profile)
         self.joy_subscriber = self.create_subscription(
             Joy,
@@ -48,6 +53,11 @@ class SpringColorChecker(Node):
             self.arm_control_sub,
             qos_profile)
         
+        self.control_subscriber = self.create_subscription(
+            Float32MultiArray, 
+            'auto_control',
+            self.auto_control, 
+            qos_profile)
         self.ser = serial.Serial('/dev/ttyRS485', 9600, timeout=5)
         
         self.max_speed = 5
@@ -63,6 +73,34 @@ class SpringColorChecker(Node):
         
         
         #######################
+        
+        self.timer_serial = self.create_timer(1/10, self.serial_read)
+        
+        self.ser.write('c'.encode()) 
+        time.sleep(1)
+        
+        self.ser.write('u'.encode()) 
+        time.sleep(1)
+        # self.get_logger().info(f'serial send "d"')
+        
+        
+    def serial_read(self) :
+        if self.ser.in_waiting > 0:  # 수신 데이터가 있을 경우
+            read_data = String()
+            raw_data = self.ser.read(self.ser.in_waiting)  # 받은 데이터 읽기
+            
+            try:
+                read_data.data = raw_data.decode('utf-8')
+            except UnicodeDecodeError:
+                self.get_logger().error("\033[1;31m Failed to decode serial data. Received raw data: {}\033[0m".format(raw_data))
+                return
+            
+            self.get_logger().info(f"Received: {read_data.data}")
+            
+            self.serial_read_data.publish(read_data)
+            
+            
+            self.get_logger().info(f"\033[1;36m {read_data.data} \033[0m")
     
     def img_indicater(self, msg) :
         current_img = self.cvbrid.imgmsg_to_cv2(msg)
@@ -80,9 +118,15 @@ class SpringColorChecker(Node):
         
         
         return
+    def auto_control(self, msg) :
+        data = msg.data
+        self.L_cmd_vel = data[1]
+        self.R_cmd_vel = data[2]
+        
+        
     
     def arm_control_sub(self, msg) :
-        data = msg.data.strip()
+        data = msg.data
         # print(f'data : {data}')
         
         if self.arm_prev_state == data :
@@ -158,14 +202,24 @@ class SpringColorChecker(Node):
             else :
                 self.ser.write('s'.encode())    
                 self.get_logger().info(f'serial send "s"')
+        elif btn[9] == 1 :
+            self.ser.write('r'.encode())    
+            self.get_logger().info(f'serial send "r"')
+            
         else :
             msg = Float32MultiArray()
             self.joy_stick_data = [self.L_cmd_vel, self.R_cmd_vel]
             msg.data = [self.odrive_mode,self.L_cmd_vel/1000*4.8, self.R_cmd_vel/1000*4.8]
             self.control_publisher.publish(msg)
+            # self.get_logger().info(f"\033[1;32m {msg.data} \033[0m")
+                
+            # self.L_cmd_vel = 0.
+            # self.R_cmd_vel = 0.
+            # self.odrive_mode = 1. 
             
     def joy_pub(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         msg.data = [self.odrive_mode,self.joy_stick_data[0] * self.max_speed ,self.joy_stick_data[1] * self.max_speed ]
         self.control_publisher.publish(msg)
         
@@ -176,6 +230,7 @@ class SpringColorChecker(Node):
     ########################################
     def turn_left(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         self.R_joy = self.max_speed * 0.5
         self.L_joy = - self.max_speed * 0.5
         msg.data = [self.odrive_mode,self.L_joy ,self.R_joy ]
@@ -183,6 +238,7 @@ class SpringColorChecker(Node):
     
     def turn_right(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         self.R_joy = - self.max_speed * 0.5
         self.L_joy = self.max_speed * 0.5
         msg.data = [self.odrive_mode,self.L_joy ,self.R_joy ]
@@ -190,6 +246,7 @@ class SpringColorChecker(Node):
     
     def go(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         self.R_joy = self.max_speed * 0.5
         self.L_joy = self.max_speed * 0.5
         msg.data = [self.odrive_mode,self.L_joy ,self.R_joy ]
@@ -197,6 +254,7 @@ class SpringColorChecker(Node):
     
     def back(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         self.R_joy = - self.max_speed * 0.5
         self.L_joy = - self.max_speed * 0.5
         msg.data = [self.odrive_mode,self.L_joy ,self.R_joy ]
@@ -204,6 +262,7 @@ class SpringColorChecker(Node):
         
     def stop(self) :
         msg = Float32MultiArray()
+        self.odrive_mode = 1. 
         self.R_joy = 0.
         self.L_joy = 0.
         msg.data = [self.odrive_mode,self.L_joy ,self.R_joy ]
@@ -215,7 +274,7 @@ class SpringColorChecker(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = SpringColorChecker()
+    node = CompleteJoyDrive()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

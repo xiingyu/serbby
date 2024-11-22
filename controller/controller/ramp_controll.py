@@ -78,8 +78,8 @@ class Odrive_car(Node):
 
             self.my_drive.axis0.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
             self.my_drive.axis1.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
-            self.my_drive.axis0.controller.config.vel_ramp_rate = 10
-            self.my_drive.axis1.controller.config.vel_ramp_rate = 10
+            self.my_drive.axis0.controller.config.vel_ramp_rate = 30
+            self.my_drive.axis1.controller.config.vel_ramp_rate = 30
             self.my_drive.axis0.controller.config.input_mode = INPUT_MODE_VEL_RAMP
             self.my_drive.axis1.controller.config.input_mode = INPUT_MODE_VEL_RAMP
             self.get_logger().info('Change mode to velocity')

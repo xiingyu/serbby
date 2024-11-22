@@ -2,13 +2,14 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float64, Float32MultiArray, String
+from std_msgs.msg import Float64, Float32MultiArray, String, Bool
 
 import pyrealsense2 as rs
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
 from ultralytics import YOLO
+from std_srvs.srv import SetBool
 
 import time
 
@@ -54,30 +55,39 @@ class PersonDistancePub(Node):
         self.depth_frame_pub = self.create_publisher(Image, 'depth_data', qos_profile)
         self.color_frame_pub = self.create_publisher(Image, 'color_data', qos_profile)
         self.distance_data_pub = self.create_publisher(Float64, 'distance_data', qos_profile)
+        self.cam_flagger = self.create_publisher(
+            Bool, 
+            'cam_flag_topic', 
+            10)
         
-        self.robot_state_pub = self.create_publisher(
-            String,
-            'robot_state',
-            qos_profile)
-        self.goal_sub = self.create_subscription(
-            Float32MultiArray,
-            'goal_serbby',
-            self.goal_sub_callback,
-            qos_profile)
-        self.robot_state = self.create_subscription(
-            String,
-            'robot_state',
-            self.goal_sub_callback,
-            qos_profile)
-        self.main_state = self.create_subscription(
-            String,
-            'main_state',
-            self.goal_sub_callback,
-            qos_profile)
-        self.move_num_pub = self.create_publisher(String, '/num', self.move_num_clear,10)
+        self.robot_state_pub = self.create_publisher(String, 'robot_state', qos_profile)
+        self.goal_sub = self.create_subscription(Float32MultiArray,'goal_serbby',self.goal_sub_callback, qos_profile)
+        self.robot_state_sub = self.create_subscription(String,'robot_state',self.robot_state_sub_callback,qos_profile)
+        self.main_state_sub = self.create_subscription(String, 'main_state',self.main_state_sub_callback,qos_profile)
+        self.move_num_pub = self.create_publisher(String, '/num',10)
         
         self.state_sub = self.create_subscription(String, 'state', self.state_callback, qos_profile)
         
+        self.arm_control = self.create_publisher(
+            String,
+            'arm_control',
+            qos_profile)
+        self.control_publisher = self.create_publisher(
+            Float32MultiArray, 
+            'auto_control', 
+            qos_profile)
+        
+        self.auto_controller = self.create_publisher(
+            Float32MultiArray,
+            'wheel_command',
+            qos_profile)
+        
+        
+        self.serial_read_data = self.create_subscription(
+            String, 
+            'read_rs485', 
+            self.serial_read,
+            qos_profile)
 
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -141,7 +151,7 @@ class PersonDistancePub(Node):
         
         self.cap = cv2.VideoCapture("/dev/c920")
 
-        self.timer1 = self.create_timer(1/self.frame_rate, self.cam_cap)
+        # self.timer1 = self.create_timer(1/self.frame_rate, self.cam_cap)
         self.timer2 = self.create_timer(1/self.frame_rate, self.depth_cap)
         self.timer3 = self.create_timer(1/self.frame_rate, self.img_show)
         self.timer4 = self.create_timer(1/self.frame_rate, self.camera_positioning)
@@ -161,8 +171,13 @@ class PersonDistancePub(Node):
         self.goal_num = 0
         self.robot_state = "idle"
         self.main_state = "idle"
+        self.substate = "aruco"
+        # aruco     # aruco
+        # lift up 
+        # gogo      # liftdown
+        # back      # back
         
-        
+        self.read_data = "nothing"
         self.center_x = 0
         self.center_y = 0
         ###
@@ -176,6 +191,11 @@ class PersonDistancePub(Node):
         
         
         self.get_logger().info(f'init clear')
+    
+    def serial_read(self,msg) :
+        self.read_data = msg.data
+        self.get_logger().info(f"\033[1;32m 이동 상태: {self.read_data} \033[0m")
+        
             
         
     ##aruco marker는,, home이 1
@@ -205,13 +225,19 @@ class PersonDistancePub(Node):
         
         
     def camera_positioning(self) :
+        arm_msg = String()
+        arm_cmd = String()
+        cnt_data = Float32MultiArray()
+        cam_flagger = Bool()
         
         ## if robot state ~~이런거 해야됨
-        if self.robot_state == "arive" :
+        if self.robot_state == "arrive" or  self.robot_state=="putting" or self.robot_state == "taking":
             ## setting
             #책상의 aruco 찾고 뒤로 빼고 자리 찾고 넣어야함.
+            print("first if passed")
             if self.main_state == "setting" :
-                self.update_frame_flag = False
+                print("sedond if passed")
+                # self.update_frame_flag = False
                 gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
                 aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
                 parameters = cv2.aruco.DetectorParameters_create()
@@ -221,7 +247,8 @@ class PersonDistancePub(Node):
                     # msg.data = "s"
                     # self.arm_control.publish(msg)
                     for i in range(len(ids)):
-                        if ids[i][0] == (self.goal_num *10 + 1):  # ID가 11인 경우에만 처리
+                        # if ids[i][0] == (self.goal_num *10 + 1):  # ID가 11인 경우에만 처리
+                        if True :
                             rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
                             self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
                             cv2.aruco.drawDetectedMarkers(self.color_image, corners)
@@ -230,7 +257,89 @@ class PersonDistancePub(Node):
                             corner_points = corners[i][0]
                             self.center_x = int(np.mean(corner_points[:, 0]))  # x 좌표의 평균
                             self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
-                self.update_frame_flag = True
+                # self.update_frame_flag = True
+                if self.substate == "aruco" :
+                    if (self.center_x <= (self.img_size_x * 0.9)) & (self.center_x >= (self.img_size_x * 0.1)) :
+                        if (self.center_y <= (self.img_size_y * 0.7)) & (self.center_y >= (self.img_size_y * 0.5)) :
+                            # self.stop()
+                            self.get_logger().info("\033[1;32m center_x is in range \033[0m")
+                    
+                            cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                            self.control_publisher.publish(cnt_data)
+                            cur_time = time.time()
+                            while (time.time()- cur_time) < 3 :
+                                cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                                self.control_publisher.publish(cnt_data)
+                                time.sleep(0.1)
+                                
+                            # self.delay(cur_time, 5)
+                            print("before sleep")
+                            time.sleep(8)
+                            print("after sleep")
+                            arm_cmd.data = "c"
+                            self.arm_control.publish(arm_cmd)
+                            self.substate = "liftdown"
+                            self.get_logger().info("change substate to liftdown")
+                            
+                            cnt_data.data = [1., 0. ,0.]
+                            self.control_publisher.publish(cnt_data)
+                            
+                        elif self.center_y >= (self.img_size_y * 0.6) : 
+                            cnt_data = Float32MultiArray()
+                            cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
+                            self.control_publisher.publish(cnt_data)
+                            
+                        elif self.center_y <= (self.img_size_y * 0.4) : 
+                            cnt_data = Float32MultiArray()
+                            cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                            self.control_publisher.publish(cnt_data)
+                        else :
+                            pass
+                    else :
+                        self.get_logger().info("\033[1;31m center_x is out of range \033[0m")
+                elif self.substate == "liftdown" :
+                    self.get_logger().info(f"\033[1;36m substate : {self.substate}  read_date : {self.read_data} \033[0m")
+                    if self.read_data and self.read_data[0] != "o" :
+                        arm_cmd.data = "d"
+                        self.arm_control.publish(arm_cmd)
+                        
+                    elif self.read_data and self.read_data[0] == "o" :
+                        arm_cmd.data = "s"
+                        self.arm_control.publish(arm_cmd)
+                        cur_time = time.time()
+                        self.delay(cur_time, 3)
+                        
+                        arm_cmd.data = "d"
+                        self.arm_control.publish(arm_cmd)
+                        cur_time = time.time()
+                        self.delay(cur_time, 1)
+                        
+                        
+                        arm_cmd.data = "s"
+                        self.arm_control.publish(arm_cmd)
+                        self.read_data = "nothing"
+                        
+                        self.substate = "back"
+                elif self.substate == "back" :
+                    
+                    cnt_data = Float32MultiArray()
+                    cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                    self.control_publisher.publish(cnt_data)
+                    cur_time = time.time()
+                    
+                    while (time.time()- cur_time) < 5 :
+                        cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                        self.control_publisher.publish(cnt_data)
+                        time.sleep(0.1)
+                                
+                    
+                    
+                    self.delay(cur_time, 5)
+                    
+                    cam_flagger.data = True
+                    self.cam_flagger.publish(cam_flagger)
+                    self.get_logger().info("\033[1;36m cam_flagger True is sent \033[0m")
+                
                     
             ## decay
             #상판의 aruco 찾고 자리 찾고 넣어야함.
@@ -276,13 +385,26 @@ class PersonDistancePub(Node):
         # frame = cv2.line(frame, tuple(axis_points_2d[0].ravel()), tuple(axis_points_2d[3].ravel()), (255, 0, 0), 2)
 
         return frame
+    
+    def delay(self, prev_times, seconds) : 
+        while True :
+            current_time = time.time()
+            if ((current_time - prev_times) <= seconds) :
+                cv2.imshow('color', self.color_image)
+                # cv2.imshow('depth', self.depth_image)
+                cv2.imshow('color', self.annotated_img)
+                # cv2.imshow('c920', self.c920)
+                cv2.imshow('drawn', self.drawed_frame)
+                cv2.waitKey(1)
+            else :
+                return
 
     def img_show(self):
         
         cv2.imshow('color', self.color_image)
         # cv2.imshow('depth', self.depth_image)
         cv2.imshow('color', self.annotated_img)
-        cv2.imshow('c920', self.c920)
+        # cv2.imshow('c920', self.c920)
         cv2.imshow('drawn', self.drawed_frame)
         cv2.waitKey(1)
 
@@ -314,24 +436,24 @@ class PersonDistancePub(Node):
             self.color_image = np.asanyarray(self.color_frame.get_data())
             
             
-            # gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
-            # aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
-            # parameters = cv2.aruco.DetectorParameters_create()
-            # corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
+            aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+            parameters = cv2.aruco.DetectorParameters_create()
+            corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
-            # if ids is not None and len(ids) > 0:
-            #     for i in range(len(ids)):
-            #         rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
-            #         self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
-            #         cv2.aruco.drawDetectedMarkers(self.color_image, corners)
+            if ids is not None and len(ids) > 0:
+                for i in range(len(ids)):
+                    rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+                    self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
+                    cv2.aruco.drawDetectedMarkers(self.color_image, corners)
             
             
             ###yolo's turn
             
-            result = self.model.predict(self.color_image, classes=[0., 67.], conf= 0.6, max_det = 1)
+            result = self.model.predict(self.color_image, classes=[0., 67.], conf= 0.6, max_det = 1, verbose=False)
             self.annotated_img = result[0].plot()
             if len(result[0].boxes.cls) :
-                print(result[0].boxes.cls)
+                # print(result[0].boxes.cls)
                 object_xy = np.array(result[0].boxes.xywh.detach().numpy().tolist()[0], dtype='int')
                 
                 # print(object_xy[0], object_xy[1]) ### 640 by 480 
@@ -346,7 +468,8 @@ class PersonDistancePub(Node):
                 self.distance_data_pub.publish(distance_msg)
                 
             else :
-                self.get_logger().info(f'any object detected')
+                # self.get_logger().info(f'any object detected')
+                pass
                 
             
             
@@ -363,10 +486,18 @@ class PersonDistancePub(Node):
             # self.color_frame_pub.publish(self.cvbrid.cv2_to_imgmsg(self.annotated_img))
         
         
+    
+        
+    def robot_state_sub_callback(self,msg) :
+        self.robot_state = msg.data
+        self.get_logger().info(f"\033[1;35m robot_state : {self.robot_state} \033[0m")
+        
+    def main_state_sub_callback(self,msg) :
+        self.main_state = msg.data
+        self.get_logger().info(f"\033[1;35m robot_state : {self.main_state} \033[0m")
         
         
-    def goal_sub_callback(self) :
-        
+    def goal_sub_callback(self,msg) :
         return
         
 

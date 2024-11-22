@@ -9,8 +9,8 @@ class CmdVelToWheelNode(Node):
     def __init__(self):
         super().__init__('cmd_vel_to_wheel_node')
         self.ppr = 1000
-        self.wheel_radius = 0.075
-        self.wheel_separation = 0.592
+        self.wheel_radius = 0.0875
+        self.wheel_separation = 0.560
         self.linear_x = 0
         self.angular_z = 0
         self.left_wheel_rps = 0  
@@ -18,6 +18,11 @@ class CmdVelToWheelNode(Node):
         self.cmd_vel_sub = self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_callback, QoSProfile(depth=10))
         self.wheel_command_pub = self.create_publisher(Float32MultiArray, 'wheel_command', QoSProfile(depth=10))
         self.timer = self.create_timer(1, self.update_rps)
+        
+        ### fix bug param###
+        self.prev_left_wheel_rps = 0
+        self.prev_right_wheel_rps = 0
+        
 
     def cmd_vel_callback(self, msg):
         self.linear_x = msg.linear.x / 1.25
@@ -41,12 +46,22 @@ class CmdVelToWheelNode(Node):
         #         self.right_wheel_rps = 0
         #     elif self.angular_z > 0.01:
         #         self.left_wheel_rps = 0
+        
+        if ((self.prev_left_wheel_rps == self.left_wheel_rps)& (self.prev_right_wheel_rps == self.right_wheel_rps)) :
+            self.prev_left_wheel_rps = self.left_wheel_rps
+            self.prev_right_wheel_rps = self.right_wheel_rps
+            pass
+            
+        else :
 
-        wheel = Float32MultiArray()
-        wheel.data = [float(self.left_wheel_rps), float(self.right_wheel_rps)]
+            wheel = Float32MultiArray()
+            wheel.data = [float(self.left_wheel_rps), float(self.right_wheel_rps)]
 
-        self.wheel_command_pub.publish(wheel)
-        self.get_logger().info(f"L : {self.left_wheel_rps}, R : {self.right_wheel_rps}")
+            self.wheel_command_pub.publish(wheel)
+            self.get_logger().info(f"L : {self.left_wheel_rps}, R : {self.right_wheel_rps}")
+            self.prev_left_wheel_rps = self.left_wheel_rps
+            self.prev_right_wheel_rps = self.right_wheel_rps
+            
 
 def main(args=None):
     rclpy.init(args=args)

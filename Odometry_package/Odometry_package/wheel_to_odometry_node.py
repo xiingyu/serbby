@@ -8,8 +8,8 @@ import math
 class EncoderMotorControlNode(Node):
     def __init__(self):
         super().__init__('wheel_to_odometry_node')
-        self.wheel_radius = 0.075  
-        self.wheel_separation = 0.592  
+        self.wheel_radius = 0.0875
+        self.wheel_separation = 0.560
         self.ppr = 1000
 
         self.create_subscription(Float32MultiArray, 'Odrive_encoder', self.wheel_command_callback, QoSProfile(depth=10))
