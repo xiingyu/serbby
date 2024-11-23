@@ -307,11 +307,7 @@ class PersonDistancePub(Node):
                                 
                                 # cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
                                 # self.control_publisher.publish(cnt_data)
-                                drive_msg.data = [2., 4.,4.]
-                                self.abs_control_pub.publish(drive_msg)
-                                drive_msg.data = [2., 4.,4.]
-                                self.abs_control_pub.publish(drive_msg)
-                                drive_msg.data = [2., 4.,4.]
+                                drive_msg.data = [2., 3.,3.]
                                 self.abs_control_pub.publish(drive_msg)
                                     
                                 self.delay(cur_time, 3)
@@ -368,15 +364,12 @@ class PersonDistancePub(Node):
                     cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
                     self.control_publisher.publish(cnt_data)
                     cur_time = time.time()
-                    
-                    while (time.time()- cur_time) < 5 :
-                        cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
-                        self.control_publisher.publish(cnt_data)
-                        time.sleep(0.1)
-                                
-                    
-                    
                     self.delay(cur_time, 5)
+                    # while (time.time()- cur_time) < 5 :
+                    #     cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                    #     self.control_publisher.publish(cnt_data)
+                    #     time.sleep(0.1)
+                                
                     
                     cam_flagger.data = True
                     self.cam_flagger.publish(cam_flagger)
@@ -460,7 +453,7 @@ class PersonDistancePub(Node):
                 # cv2.imshow('depth', self.depth_image)
                 cv2.imshow('color', self.annotated_img)
                 # cv2.imshow('c920', self.c920)
-                cv2.imshow('drawn', self.drawed_frame)
+                # cv2.imshow('drawn', self.drawed_frame)
                 cv2.waitKey(1)
             else :
                 return

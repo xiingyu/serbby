@@ -6,11 +6,27 @@ from std_msgs.msg import Float32MultiArray, String, Bool, Int32
 from geometry_msgs.msg import PoseStamped
 
 from cv_bridge import CvBridge
+import time
 
 # import serial
 import sys
 params_dir = '/home/skh/semi_projects/jongsul/src/map_localization/params/coordinate.yaml'
 coord_lists = {}
+
+
+## robot state 
+# got_goal
+# arrive
+# got_goal2
+
+
+
+
+## main state
+# idle
+# setting
+# decay
+
 
 class SpringColorChecker(Node):
     def __init__(self):
@@ -201,9 +217,9 @@ class SpringColorChecker(Node):
                 
                 self.get_logger().info(f'inout goal (ex, g 1)')
                 mod, num_table = sys.stdin.readline().split()
-                self.robot_state_pub.publish(robot_state_msg)
                 self.robot_state = "got_goal"
                 robot_state_msg.data = "got_goal"
+                self.robot_state_pub.publish(robot_state_msg)
                 
                 if mod == "g" :
                     self.send_table_num(num_table)
@@ -285,6 +301,18 @@ class SpringColorChecker(Node):
                 self.send_drive_command(1)
                 self.send_num_msg(1)
                 self.robot_state = "got_goal2"
+                
+        elif self.robot_state == "got_goal2" :
+            # self.get_logger().info(f'go to home in 3 seconds...')
+            # time.sleep(1)
+            # self.get_logger().info(f'go to home in 2 seconds...')
+            # time.sleep(1)
+            # self.get_logger().info(f'go to home in 1 seconds...')
+            # time.sleep(1)
+            
+            
+            self.get_logger().info(f'state got_goal2')
+            # self.send_drive_command(1)
                 
         else :
             # self.get_logger().info(f'Invalid command : {self.main_state}')
