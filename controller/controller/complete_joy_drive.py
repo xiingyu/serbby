@@ -94,7 +94,7 @@ class CompleteJoyDrive(Node):
         ctl_data = msg.data
         msg = Float32MultiArray()
         # self.odrive_mode = 2. 
-        msg.data = [ctl_data[1],ctl_data[1], ctl_data[2] ]
+        msg.data = [ctl_data[0],ctl_data[1], ctl_data[2] ]
         self.control_publisher.publish(msg)
         self.cur_time = time.time()
         

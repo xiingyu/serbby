@@ -11,6 +11,7 @@ from cv_bridge import CvBridge
 from ultralytics import YOLO
 from std_srvs.srv import SetBool
 
+import threading
 import time
 
 ARUCO_DICT = {
@@ -202,6 +203,9 @@ class PersonDistancePub(Node):
         
         
         self.get_logger().info(f'init clear')
+        
+        
+        self.thread = threading.Thread(target=self.depth_cap, daemon=True)
     
     def serial_read(self,msg) :
         self.read_data = msg.data
@@ -238,15 +242,20 @@ class PersonDistancePub(Node):
     def camera_positioning(self) :
         arm_msg = String()
         arm_cmd = String()
+        drive_msg = Float32MultiArray()
         cnt_data = Float32MultiArray()
         cam_flagger = Bool()
         
         ## if robot state ~~이런거 해야됨
         if self.robot_state == "arrive" or  self.robot_state=="putting" or self.robot_state == "taking":
+        # if True :
             ## setting
             #책상의 aruco 찾고 뒤로 빼고 자리 찾고 넣어야함.
             # print("first if passed")
             if self.main_state == "setting" :
+                cam_flagger.data = False
+                self.cam_flagger.publish(cam_flagger)
+                self.get_logger().info("\033[1;36m cam_flagger False is sent \033[0m")
                 # print("main state is setting")
                 # self.update_frame_flag = False
                 gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
@@ -261,8 +270,8 @@ class PersonDistancePub(Node):
                     # self.arm_control.publish(msg)
                     for i in range(len(ids)):
                         # print("ive get in for")
-                        # if ids[i][0] == (self.goal_num *10 + 1):  # ID가 11인 경우에만 처리
-                        if True :
+                        if ids[i][0] == 11:  # ID가 11인 경우에만 처리
+                        # if True :
                             rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
                             cv2.aruco.drawDetectedMarkers(self.color_image, corners)
                             self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
@@ -291,26 +300,64 @@ class PersonDistancePub(Node):
                                 self.get_logger().info(f"\033[1;38m {drive_msg.data[1]}, {drive_msg.data[2]} \033[0m")
                         
                                 cur_time = time.time()
-                                self.delay(cur_time, 5)
-                            else :
-                                drive_msg = Float32MultiArray()
-                                # self.stop()
-                                # self.get_logger().info("\033[1;32m center_x is in range \033[0m")
-                        
-                                # cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
-                                # self.control_publisher.publish(cnt_data)
-                                cur_time = time.time()
-                                # # while (time.time()- cur_time) < 3 :
-                                # #     cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
-                                # #     self.control_publisher.publish(cnt_data)
-                                # #     time.sleep(0.1)
-                                
-                                # cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
-                                # self.control_publisher.publish(cnt_data)
-                                drive_msg.data = [2., 3.,3.]
-                                self.abs_control_pub.publish(drive_msg)
-                                    
                                 self.delay(cur_time, 3)
+                                drive_msg.data = [1., 0. ,0.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.delay(cur_time, 3)
+                            else :
+                                cur_time = time.time()
+                                drive_msg.data = [1., 0. ,0.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.delay(cur_time, 3)
+                                
+                                # drive_msg = Float32MultiArray()
+                                # drive_msg.data = [2., -1., -1.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 3)
+                                
+                                
+                                # drive_msg.data = [2., 2.3, 2.3]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("go woward")
+                                
+                                drive_msg.data = [2., 11., 11.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.get_logger().info("go woward")
+                                
+                                # drive_msg = Float32MultiArray()
+                                # drive_msg.data = [2., 0.5, 0.5]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 2)
+                                
+                                # drive_msg.data = [2., 1., 1.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 2)
+                                # drive_msg.data = [2., 1.3, 1.3]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 2)
+                                
+                                # drive_msg.data = [1., 2.,2.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("gogo")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 1)
+                                
+                                # drive_msg.data = [1., 0.,0.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("stop")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 1)
+                                    
+                                cur_time = time.time()
+                                self.delay(cur_time, 5)
                                 # print("before sleep")
                                 # time.sleep(8)
                                 # print("after sleep")
@@ -319,15 +366,21 @@ class PersonDistancePub(Node):
                                 self.substate = "liftdown"
                                 self.get_logger().info("change substate to liftdown")
                                 
+                                cur_time = time.time()
                                 cnt_data.data = [1., 0. ,0.]
                                 self.control_publisher.publish(cnt_data)
+                                self.delay(cur_time, 2)
+                                cur_time = time.time()
+                                cnt_data.data = [1., 0. ,0.]
+                                self.control_publisher.publish(cnt_data)
+                                self.delay(cur_time, 2)
                             
-                        elif self.center_y >= (self.img_size_y * 0.6) : 
+                        elif self.center_y >= (self.img_size_y * 0.7) : 
                             cnt_data = Float32MultiArray()
                             cnt_data.data = [1.,1000/4.8 *2  ,1000/4.8 *2]
                             self.control_publisher.publish(cnt_data)
                             
-                        elif self.center_y <= (self.img_size_y * 0.4) : 
+                        elif self.center_y <= (self.img_size_y * 0.5) : 
                             cnt_data = Float32MultiArray()
                             cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
                             self.control_publisher.publish(cnt_data)
@@ -365,6 +418,8 @@ class PersonDistancePub(Node):
                     self.control_publisher.publish(cnt_data)
                     cur_time = time.time()
                     self.delay(cur_time, 5)
+                    cnt_data.data = [1.,0.  ,0.]
+                    self.control_publisher.publish(cnt_data)
                     # while (time.time()- cur_time) < 5 :
                     #     cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
                     #     self.control_publisher.publish(cnt_data)
@@ -374,39 +429,200 @@ class PersonDistancePub(Node):
                     cam_flagger.data = True
                     self.cam_flagger.publish(cam_flagger)
                     self.get_logger().info("\033[1;36m cam_flagger True is sent \033[0m")
+                    self.substate = "idle"
                 
                     
             ## decay
             #상판의 aruco 찾고 자리 찾고 넣어야함.
             elif self.main_state == "decay" :
-                self.update_frame_flag = False
+                print("main state is decay")
+                # self.update_frame_flag = False
+                cam_flagger.data = False
+                self.cam_flagger.publish(cam_flagger)
+                self.get_logger().info("\033[1;36m cam_flagger False is sent \033[0m")
                 gray = cv2.cvtColor(self.c920, cv2.COLOR_BGR2GRAY)
                 aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
                 parameters = cv2.aruco.DetectorParameters_create()
                 corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
+                # print(ids)
                 if ids is not None and len(ids) > 0:
+                    # print("id is exist")
                     # msg.data = "s"
                     # self.arm_control.publish(msg)
                     for i in range(len(ids)):
-                        if ids[i][0] == (self.goal_num *10 + 0):  # ID가 11인 경우에만 처리
+                        print("ive get in for")
+                        if ids[i][0] == 10:  # ID가 10인 경우에만 처리
+                        
                             rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
-                            self.c920 = self.draw_axis(self.c920, self.k, self.d, rvec, tvec, 0.01)
                             cv2.aruco.drawDetectedMarkers(self.c920, corners)
+                            self.c920 = self.draw_axis(self.c920, self.k, self.d, rvec, tvec, 0.01)
+                            # print("pass aruco draw")
                             
                             
                             corner_points = corners[i][0]
                             self.center_x = int(np.mean(corner_points[:, 0]))  # x 좌표의 평균
                             self.center_y = int(np.mean(corner_points[:, 1]))  # y 좌표의 평균
-                self.update_frame_flag = True
-                
+                            print(self.center_y / self.img_size_y)
+                else :      
+                    self.center_x = 0
+                    self.center_y = 0
+                            # print(self.center_x)
+                # self.update_frame_flag = True
+                if self.substate == "aruco" :
+                    self.get_logger().info(f'centerx : {self.center_x} centery : {self.center_y}')
+                    
+                    if (self.center_x <= (self.img_size_x * 0.9)) & (self.center_x >= (self.img_size_x * 0.1)) :
+                        if (self.center_y <= (self.img_size_y * 0.55)) & (self.center_y >= (self.img_size_y * 0.45)) :
+                            if abs(self.yawing_degree) > 1.0 :
+                                drive_msg = Float32MultiArray()
+                                movement_distance = self.robot_width * np.pi / 180 * self.yawing_degree
+                                L_rotate = - (movement_distance /self.wheel_size / np.pi)
+                                R_rotate = (movement_distance /self.wheel_size / np.pi)
+                                drive_msg.data = [2., L_rotate, R_rotate]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.get_logger().info(f"\033[1;38m {drive_msg.data[1]}, {drive_msg.data[2]} \033[0m")
+                        
+                                cur_time = time.time()
+                                self.delay(cur_time, 3)
+                                drive_msg.data = [1., 0. ,0.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.delay(cur_time, 3)
+                            else :
+                                
+                                arm_cmd.data = "s"
+                                self.arm_control.publish(arm_cmd)
+                                self.get_logger().info(f'arm stop')
+                                time.sleep(0.1)
+                                cur_time = time.time()
+                                drive_msg.data = [1., 0. ,0.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.delay(cur_time, 3)
+                                
+                                # drive_msg = Float32MultiArray()
+                                # drive_msg.data = [2., -1., -1.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 3)
+                                
+                                
+                                # drive_msg.data = [2., 2.3, 2.3]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("go woward")
+                                
+                                drive_msg.data = [2., 12., 12.]
+                                self.abs_control_pub.publish(drive_msg)
+                                self.get_logger().info("go woward")
+                                # drive_msg = Float32MultiArray()
+                                # drive_msg.data = [2., -1., -1.]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("ge back")
+                                # cur_time = time.time()
+                                # self.delay(cur_time, 3)
+                                
+                                
+                                # drive_msg.data = [2., 2.3, 2.3]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("go woward")
+                                
+                                # drive_msg.data = [2., 1.3, 1.3]
+                                # self.abs_control_pub.publish(drive_msg)
+                                # self.get_logger().info("go woward")
+                                    
+                                cur_time = time.time()
+                                self.delay(cur_time, 10)
+                                
+                                arm_cmd.data = "c"
+                                self.arm_control.publish(arm_cmd)
+                                self.substate = "liftup"
+                                self.get_logger().info("\033[1;31m change substate to liftup \033[0m")
+                                
+                                cur_time = time.time()
+                                self.delay(cur_time, 2)
+                                cnt_data.data = [1., 0. ,0.]
+                                self.control_publisher.publish(cnt_data)
+                                cur_time = time.time()
+                                self.delay(cur_time, 2)
+                                cnt_data.data = [1., 0. ,0.]
+                                self.control_publisher.publish(cnt_data)
+                        elif ids is None or len(ids) == 0:
+                            arm_cmd.data = "s"
+                            self.arm_control.publish(arm_cmd)
+                            self.get_logger().info(f'arm stop')
+                            time.sleep(0.1)
+                            
+                        elif self.center_y >= (self.img_size_y * 0.55) : 
+                            arm_cmd.data = "d"
+                            self.arm_control.publish(arm_cmd)
+                            self.get_logger().info(f'arm down')
+                            time.sleep(0.1)
+                            
+                        elif self.center_y <= (self.img_size_y * 0.45) : 
+                            arm_cmd.data = "u"
+                            self.arm_control.publish(arm_cmd)
+                            self.get_logger().info(f'arm up')
+                            time.sleep(0.1)
+                        else :
+                            pass
+                    else :
+                        self.get_logger().info(f"\033[1;31m center_x is out of range : {self.center_x} \033[0m")
+                elif self.substate == "liftup" :
+                    self.get_logger().info(f"\033[1;36m substate : {self.substate}  read_date : {self.read_data} \033[0m")
+                    # if self.read_data and self.read_data[0] != "o" :
+                    #     arm_cmd.data = "u"
+                    #     self.arm_control.publish(arm_cmd)
+                        
+                    # elif self.read_data and self.read_data[0] == "o" :
+                    #     arm_cmd.data = "s"
+                    #     self.arm_control.publish(arm_cmd)
+                    #     cur_time = time.time()
+                    #     self.delay(cur_time, 3)
+                        
+                    #     arm_cmd.data = "u"
+                    #     self.arm_control.publish(arm_cmd)
+                    #     cur_time = time.time()
+                    #     self.delay(cur_time, 3)
+                        
+                        
+                    #     self.read_data = "nothing"
+                        
+                    #     self.substate = "back"
+                    arm_cmd.data = "u"
+                    self.arm_control.publish(arm_cmd)
+                    cur_time = time.time()
+                    self.delay(cur_time, 6)
+                    self.read_data = "nothing"
+                    
+                    self.substate = "back"
+                    
+                        
+                elif self.substate == "back" :
+                    
+                    cnt_data = Float32MultiArray()
+                    cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                    self.control_publisher.publish(cnt_data)
+                    cur_time = time.time()
+                    self.delay(cur_time, 5)
+                    cnt_data.data = [1.,0.  ,0.]
+                    self.control_publisher.publish(cnt_data)
+                    # while (time.time()- cur_time) < 5 :
+                    #     cnt_data.data = [1.,-1000/4.8 *2  ,-1000/4.8 *2]
+                    #     self.control_publisher.publish(cnt_data)
+                    #     time.sleep(0.1)
+                                
+                    
+                    cam_flagger.data = True
+                    self.cam_flagger.publish(cam_flagger)
+                    self.get_logger().info("\033[1;36m cam_flagger True is sent \033[0m")
+                    self.substate = "idle"
             
             
             else :
                 self.update_frame_flag = True
                 self.get_logger().info( "\033[1;31m Invalid State \033[0m")
-        else :
-            self.update_frame_flag = True
+        # else :
+        #     self.update_frame_flag = True
         
         
     
@@ -463,8 +679,8 @@ class PersonDistancePub(Node):
         cv2.imshow('color', self.color_image)
         # cv2.imshow('depth', self.depth_image)
         cv2.imshow('color', self.annotated_img)
-        # cv2.imshow('c920', self.c920)
-        cv2.imshow('drawn', self.drawed_frame)
+        cv2.imshow('c920', self.c920)
+        # cv2.imshow('drawn', self.drawed_frame)
         cv2.waitKey(1)
 
         
@@ -481,6 +697,13 @@ class PersonDistancePub(Node):
         
 
     def depth_cap(self):
+        
+        if self.update_frame_flag :
+            ret, self.c920 = self.cap.read()
+            
+            if not ret :
+                self.get_logger().info(f'c920 capture fail')
+                
         if self.update_frame_flag :
             distance_msg = Float64()
             
@@ -494,18 +717,28 @@ class PersonDistancePub(Node):
             self.depth_image = np.asanyarray(self.aligned_depth_frame.get_data())
             self.color_image = np.asanyarray(self.color_frame.get_data())
             
-            
-            gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
-            aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
-            parameters = cv2.aruco.DetectorParameters_create()
-            corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            if self.main_state == "setting" :
+                gray = cv2.cvtColor(self.color_image, cv2.COLOR_BGR2GRAY)
+                aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+                parameters = cv2.aruco.DetectorParameters_create()
+                corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
-            if ids is not None and len(ids) > 0:
-                for i in range(len(ids)):
-                    rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
-                    self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
-                    cv2.aruco.drawDetectedMarkers(self.color_image, corners)
-            
+                if ids is not None and len(ids) > 0:
+                    for i in range(len(ids)):
+                        rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+                        self.color_image = self.draw_axis(self.color_image, self.k, self.d, rvec, tvec, 0.01)
+                        cv2.aruco.drawDetectedMarkers(self.color_image, corners)
+            elif self.main_state == "decay" :
+                gray = cv2.cvtColor(self.c920, cv2.COLOR_BGR2GRAY)
+                aruco_dict = cv2.aruco.Dictionary_get(self.aruco_dict_type)
+                parameters = cv2.aruco.DetectorParameters_create()
+                corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+
+                if ids is not None and len(ids) > 0:
+                    for i in range(len(ids)):
+                        rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, self.k, self.d)
+                        self.c920 = self.draw_axis(self.c920, self.k, self.d, rvec, tvec, 0.01)
+                        cv2.aruco.drawDetectedMarkers(self.c920, corners)
             
             ###yolo's turn
             

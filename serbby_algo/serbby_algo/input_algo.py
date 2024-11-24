@@ -247,15 +247,36 @@ class SpringColorChecker(Node):
                 #         success = False
 
 
-        elif self.main_state == "decay" :
-            success = False
-            main_state_msg.data = self.main_state
-            self.main_state_pub.publish(main_state_msg)
-            self.get_logger().info(f'set main state decay')
+            elif self.main_state == "decay" :
+                    main_state_msg.data = self.main_state
+                    self.main_state_pub.publish(main_state_msg)
+                    self.get_logger().info(f'set main state setting')
 
-            self.get_logger().info(f'inout goal (ex, g 1)')
-            num_table = sys.stdin.readline().strip()
-            self.send_table_num(num_table)
+                    
+                    self.get_logger().info(f'inout goal (ex, g 1)')
+                    mod, num_table = sys.stdin.readline().split()
+                    self.robot_state = "got_goal"
+                    robot_state_msg.data = "got_goal"
+                    self.robot_state_pub.publish(robot_state_msg)
+                    
+                    if mod == "g" :
+                        self.send_table_num(num_table)
+                        self.send_drive_command(num_table)
+                        self.send_num_msg(num_table)
+                    else :
+                        self.robot_state = "idle"
+                        robot_state_msg.data = "idle"
+                        self.robot_state_pub.publish(robot_state_msg)
+                        self.get_logger().info("Invalid input data")
+                    
+                    
+            # main_state_msg.data = self.main_state
+            # self.main_state_pub.publish(main_state_msg)
+            # self.get_logger().info(f'set main state decay')
+
+            # self.get_logger().info(f'inout goal (ex, g 1)')
+            # num_table = sys.stdin.readline().strip()
+            # self.send_table_num(num_table)
             
             # while success == False:
             #     if self.state_nav == '도착' :
@@ -266,7 +287,7 @@ class SpringColorChecker(Node):
             #         success = True
             #     else :
             #         success = False
-                
+                    
         # elif self.robot_state == "got_goal" :
         #     self.get_logger().info(f'inout goal (ex, g 1)')
         #     self.robot_state = "got_goal"
@@ -297,10 +318,11 @@ class SpringColorChecker(Node):
             return 
         elif self.robot_state == "arrive" :
             if self.cam_flag == True :
-                self.send_table_num(1)
-                self.send_drive_command(1)
-                self.send_num_msg(1)
+                self.send_table_num("1")
+                self.send_drive_command("1")
+                self.send_num_msg("1")
                 self.robot_state = "got_goal2"
+                self.get_logger().info(f'go state got_goal2')
                 
         elif self.robot_state == "got_goal2" :
             # self.get_logger().info(f'go to home in 3 seconds...')
@@ -311,8 +333,8 @@ class SpringColorChecker(Node):
             # time.sleep(1)
             
             
-            self.get_logger().info(f'state got_goal2')
             # self.send_drive_command(1)
+            pass
                 
         else :
             # self.get_logger().info(f'Invalid command : {self.main_state}')
